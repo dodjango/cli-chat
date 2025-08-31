@@ -105,3 +105,7 @@ just env
 ## Security
 
 - `.env` is gitignored. Keep your API keys secret and rotate them if they leak.
+
+## License
+
+MIT © 2025 dodjango. See [LICENSE](./LICENSE).
