@@ -62,19 +62,42 @@ def get_assistant_name() -> str:
     return os.getenv("ASSISTANT_NAME", "Assistant")
 
 
+def get_user_name() -> str:
+    """User display name (prefix for input prompt) used in interactive mode."""
+    load_dotenv()
+    return os.getenv("USER_NAME", "You")
+
+
 def build_console() -> Optional[Any]:
-    """Return a Rich Console with a simple theme, or None if rich is unavailable."""
+    """Return a Rich Console with a theme.
+
+    Honors NO_COLOR and CHAT_COLOR=off to disable colors. Allows simple color overrides via env:
+      - ASSISTANT_PREFIX_COLOR, ASSISTANT_TEXT_COLOR
+      - USER_PREFIX_COLOR, SYSTEM_PREFIX_COLOR, META_INFO_COLOR
+    """
     if Console is None or Theme is None:
         return None
-    theme = Theme(
-        {
-            "meta.info": "bold dim",
-            "user.prefix": "bold cyan",
-            "assistant.prefix": "bold green",
-            "assistant.text": "green",
-            "system.prefix": "bold magenta",
-        }
-    )
+
+    # Color disable toggles
+    if os.getenv("NO_COLOR") is not None:
+        return None
+    chat_color = (os.getenv("CHAT_COLOR") or "").strip().lower()
+    if chat_color in {"off", "0", "false", "no"}:
+        return None
+
+    # Defaults
+    theme_map: Dict[str, str] = {
+        "meta.info": "bold dim",
+        "user.prefix": os.getenv("USER_PREFIX_COLOR", "bold cyan"),
+        "assistant.prefix": os.getenv("ASSISTANT_PREFIX_COLOR", "bold green"),
+        "assistant.text": os.getenv("ASSISTANT_TEXT_COLOR", "green"),
+        "system.prefix": os.getenv("SYSTEM_PREFIX_COLOR", "bold magenta"),
+    }
+    # Optional override for meta color
+    if os.getenv("META_INFO_COLOR"):
+        theme_map["meta.info"] = os.getenv("META_INFO_COLOR", theme_map["meta.info"])  # type: ignore[index]
+
+    theme = Theme(theme_map)
     return Console(theme=theme)
 
 
@@ -160,6 +183,7 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
         messages.append(cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt}))
 
     assistant_name = get_assistant_name()
+    user_name = get_user_name()
     console = build_console()
     if console is not None:
         console.print("Type your message. Commands: /exit, /quit, /clear", style="meta.info")
@@ -168,7 +192,7 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
     try:
         while True:
             try:
-                user = input("You: ").strip()
+                user = input(f"{user_name}: ").strip()
             except EOFError:
                 print()
                 break

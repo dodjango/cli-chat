@@ -36,6 +36,10 @@ chat-ns:
 lint:
     uv run -- pyflakes chat.py || true
 
+# Run tests
+test:
+    uv run -- pytest -q
+
 # Copy the example env if .env is missing
 init-env:
     if [ ! -f .env ]; then cp .env.example .env; echo "Created .env from .env.example"; else echo ".env already exists"; fi
@@ -48,3 +52,10 @@ env:
     @echo "OPENAI_ORG=$OPENAI_ORG"
     @echo "OPENAI_API_KEY=<hidden>"
     @echo "ASSISTANT_NAME=$ASSISTANT_NAME"
+    @echo "USER_NAME=$USER_NAME"
+    @echo "CHAT_COLOR=$CHAT_COLOR"
+    @echo "NO_COLOR=$NO_COLOR"
+
+# Simple health check that sends a fixed prompt and exits
+ping:
+    uv run -- python chat.py --prompt "ping"

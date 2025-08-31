@@ -67,6 +67,13 @@ Environment variables (loaded via `.env`):
 - `OPENAI_ORG`           – Optional organization (OpenAI only)
 - `OPENAI_SYSTEM_PROMPT` – Optional default system prompt (configure only via `.env`)
 - `ASSISTANT_NAME`       – Optional display name used in interactive mode (defaults to `Assistant`)
+- `USER_NAME`            – Optional display name for your prompts (defaults to `You`)
+
+Color control (optional):
+
+- `NO_COLOR`             – If set, disables colorized output
+- `CHAT_COLOR`           – Set to `off|0|false|no` to disable colors; anything else enables
+- Theme overrides (Rich styles): `USER_PREFIX_COLOR`, `ASSISTANT_PREFIX_COLOR`, `ASSISTANT_TEXT_COLOR`, `SYSTEM_PREFIX_COLOR`, `META_INFO_COLOR`
 
 Tips:
 
@@ -80,7 +87,9 @@ Tips:
 - `just chat`        – Interactive (streaming)
 - `just chat-ns`     – Interactive (non-streaming)
 - `just env`         – Print important environment variables
+- `just ping`        – Quick health check that sends a fixed prompt (`ping`) and exits
 - `just lint`        – Basic lint (pyflakes)
+- `just test`        – Run smoke tests
 - `just venv`        – Ensure uv-managed venv exists
 - `just init-env`    – Copy `.env.example` to `.env` if missing
 
@@ -101,6 +110,33 @@ just env
 ```
 
 - `uv` not found: install `uv` and re-run `just install`.
+
+## Azure vs OpenAI examples
+
+Azure (use your resource’s base URL and deployment name):
+
+```bash
+# .env
+OPENAI_API_KEY=... # Azure key
+OPENAI_BASE_URL=https://<your-azure-openai>.openai.azure.com/openai/v1/
+OPENAI_DEPLOYMENT=<your-deployment-name>
+# optional
+# OPENAI_SYSTEM_PROMPT=You are a helpful assistant.
+# ASSISTANT_NAME=Computer
+# USER_NAME=You
+```
+
+OpenAI (official):
+
+```bash
+# .env
+OPENAI_API_KEY=... # OpenAI key
+OPENAI_BASE_URL=https://api.openai.com/v1/
+OPENAI_MODEL=gpt-4o-mini
+# optional
+# OPENAI_ORG=org_...
+# OPENAI_SYSTEM_PROMPT=You are a helpful assistant.
+```
 
 ## Security
 
