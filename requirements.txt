@@ -3,3 +3,7 @@ python-dotenv
 pyflakes
 rich
 pytest
+
+# Optional for --mode agents (prototype using OpenAI Agents SDK with LiteLLM)
+# Install separately if you plan to use agents mode:
+# openai-agents[litellm]

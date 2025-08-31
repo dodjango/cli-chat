@@ -80,6 +80,12 @@ Environment variables (loaded via `.env`):
 - `ASSISTANT_NAME`       – Optional display name used in interactive mode (defaults to `Assistant`)
 - `USER_NAME`            – Optional display name for your prompts (defaults to `You`)
 
+Agents mode (Azure via LiteLLM):
+
+- `AZURE_API_VERSION`    – Required Azure API version for your resource (e.g., `2024-10-01-preview`).
+- `AGENTS_MODEL`         – Optional. If not set, and `OPENAI_DEPLOYMENT` is present with an Azure base URL, agents mode infers `azure/<OPENAI_DEPLOYMENT>`.
+- `AGENTS_AZURE_API_VERSION` – Optional alternative to `AZURE_API_VERSION`.
+
 Color control (optional):
 
 - `NO_COLOR`             – If set, disables colorized output
@@ -171,5 +177,7 @@ Notes:
 
 - This mode requires the OpenAI platform and does not target Azure base URLs.
 - In this repo, the mode prints a helpful message and exits with code 2 to avoid
-	breaking Azure compatibility. To use OpenAI's Agents SDK for real, migrate the
-	CLI to the OpenAI platform and implement the agent/tool flow there.
+ breaking Azure compatibility. To use OpenAI's Agents SDK for real, migrate the
+ CLI to the OpenAI platform and implement the agent/tool flow there.
+
+Update: A prototype agents mode using the Agents SDK with LiteLLM is available to work with Azure models. Ensure `AZURE_API_VERSION` is set in your `.env`.
