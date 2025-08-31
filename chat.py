@@ -360,11 +360,29 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="CLI chat for Azure/OpenAI-compatible endpoints")
     parser.add_argument("--prompt", help="One-shot prompt; if omitted, starts interactive chat")
     parser.add_argument("--no-stream", action="store_true", help="Disable streaming output")
+    parser.add_argument(
+        "--mode",
+        choices=["completions", "agents"],
+        default="completions",
+        help="Backend mode: standard Chat Completions (default) or experimental OpenAI Agents (requires OpenAI platform)",
+    )
 
     args = parser.parse_args(argv)
     model = resolve_model()
     system_prompt = system_prompt_from_env()
     stream = not args.no_stream
+
+    if args.mode == "agents":
+        # Lazy import so default mode has no new dependencies
+        try:
+            from agents_mode import run_agents_mode  # type: ignore
+        except Exception:
+            print(
+                "Agents mode is not available. This experimental path targets the OpenAI platform and may require additional dependencies.",
+                file=sys.stderr,
+            )
+            return 2
+        return run_agents_mode(system_prompt=system_prompt, prompt=args.prompt, stream=stream)
 
     if args.prompt:
         return one_shot(model, system_prompt, args.prompt, stream)

@@ -156,3 +156,20 @@ OPENAI_MODEL=gpt-4o-mini
 ## License 📄
 
 MIT © 2025 dodjango. See [LICENSE](./LICENSE).
+
+## Experimental: Agents mode (OpenAI platform only)
+
+This project primarily targets Azure/OpenAI-compatible endpoints via Chat Completions.
+For users who want to explore OpenAI's platform-native MCP integrations, a stub
+"agents" mode is provided:
+
+```bash
+uv run -- python chat.py --mode agents --prompt "Hi"
+```
+
+Notes:
+
+- This mode requires the OpenAI platform and does not target Azure base URLs.
+- In this repo, the mode prints a helpful message and exits with code 2 to avoid
+	breaking Azure compatibility. To use OpenAI's Agents SDK for real, migrate the
+	CLI to the OpenAI platform and implement the agent/tool flow there.
