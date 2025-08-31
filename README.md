@@ -9,6 +9,10 @@
 
 An interactive command-line chat client for Azure OpenAI or any OpenAI-compatible endpoint. It supports streaming responses, keeps conversation context in interactive mode, and reads configuration from `.env`.
 
+![CLI chat demo](assets/chat-demo.gif)
+
+_Interactive streaming demo: start chat, send a message, exit._
+
 ## Highlights ✨
 
 - Azure/OpenAI-compatible via the official `openai` Python SDK

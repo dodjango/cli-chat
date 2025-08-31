@@ -8,3 +8,7 @@ __pycache__/
 
 # Just
 .justfile.md
+
+# Asciinema recordings
+assets/chat-demo.cast
+assets/chat-demo.cast.bak

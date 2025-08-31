@@ -42,7 +42,7 @@ test:
 
 # Copy the example env if .env is missing
 init-env:
-    if [ ! -f .env ]; then cp .env.example .env; echo "Created .env from .env.example"; else echo ".env already exists"; fi
+    @if [ ! -f .env ]; then cp .env.example .env; echo "Created .env from .env.example"; else echo ".env already exists"; fi
 
 # Show resolved environment variables used by the client
 env:
@@ -59,3 +59,23 @@ env:
 # Simple health check that sends a fixed prompt and exits
 ping:
     uv run -- python chat.py --prompt "ping"
+
+# Record a short terminal cast of interactive chat (you will type)
+# Output: assets/chat-demo.cast
+record-cast:
+    @mkdir -p assets
+    @rm -f assets/chat-demo.cast
+    asciinema rec --overwrite --yes --quiet --cols 160 --rows 30 -c 'bash -c "just chat"' assets/chat-demo.cast
+
+# Convert cast to GIF using asciinema/agg container (requires Docker/Podman)
+# Output: assets/chat-demo.gif
+cast-to-gif:
+    @test -f assets/chat-demo.cast || (echo "Missing assets/chat-demo.cast. Run: just record-cast" && exit 1)
+    @rm -f assets/chat-demo.gif
+    AGG_FONT_FAMILY="${AGG_FONT_FAMILY:-DejaVu Sans Mono, Noto Color Emoji, Noto Emoji}" docker run --rm -v "$(pwd)":/data ghcr.io/asciinema/agg:latest assets/chat-demo.cast assets/chat-demo.gif
+
+# Optimize GIF size (optional; requires gifsicle)
+optimize-gif:
+    @test -f assets/chat-demo.gif || (echo "Missing assets/chat-demo.gif. Run: just cast-to-gif" && exit 1)
+    gifsicle -O3 assets/chat-demo.gif -o assets/chat-demo.gif
+
