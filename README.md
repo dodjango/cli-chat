@@ -1,15 +1,22 @@
 # CLI Chat for Azure/OpenAI-compatible Endpoints
 
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![OpenAI SDK](https://img.shields.io/badge/OpenAI-SDK-412991?logo=openai&logoColor=white)
+![uv](https://img.shields.io/badge/Env-uv-000000)
+![just](https://img.shields.io/badge/Tasks-just-00ADD8?logo=gnubash&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-pytest-0A9EDC)
+
 An interactive command-line chat client for Azure OpenAI or any OpenAI-compatible endpoint. It supports streaming responses, keeps conversation context in interactive mode, and reads configuration from `.env`.
 
-## Highlights
+## Highlights ✨
 
 - Azure/OpenAI-compatible via the official `openai` Python SDK
 - Streaming by default (disable with `--no-stream`)
 - Stateful interactive chat and one-shot mode
 - Simple automation with `just`; environments managed by `uv`
 
-## Requirements
+## Requirements 📦
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) package manager
@@ -17,7 +24,7 @@ An interactive command-line chat client for Azure OpenAI or any OpenAI-compatibl
 
 The Justfile explicitly runs recipes under bash.
 
-## Quick start
+## Quick start 🚀
 
 1. Create your `.env` from the template and fill values
 
@@ -56,7 +63,7 @@ uv run -- python chat.py --prompt "Hello"
 uv run -- python chat.py
 ```
 
-## Configuration
+## Configuration ⚙️
 
 Environment variables (loaded via `.env`):
 
@@ -80,7 +87,7 @@ Tips:
 - For Azure, set `OPENAI_DEPLOYMENT` and your service’s `OPENAI_BASE_URL`.
 - For non-Azure/OpenAI-compatible services, set `OPENAI_MODEL` and the appropriate `OPENAI_BASE_URL`.
 
-## Just recipes (cheat sheet)
+## Just recipes (cheat sheet) 🧰
 
 - `just install`     – Create venv (uv) and install deps
 - `just prompt "..."` – One-shot with positional message
@@ -93,7 +100,7 @@ Tips:
 - `just venv`        – Ensure uv-managed venv exists
 - `just init-env`    – Copy `.env.example` to `.env` if missing
 
-## Development
+## Development 🛠️
 
 ```bash
 just lint
@@ -101,7 +108,7 @@ just lint
 
 The repo includes `.editorconfig` to keep indentation consistent (tabs for `Justfile`, 4 spaces for Python).
 
-## Troubleshooting
+## Troubleshooting 🧪
 
 - Missing environment variables: ensure `.env` exists and values are set.
 
@@ -111,7 +118,7 @@ just env
 
 - `uv` not found: install `uv` and re-run `just install`.
 
-## Azure vs OpenAI examples
+## Azure vs OpenAI examples 🌐
 
 Azure (use your resource’s base URL and deployment name):
 
@@ -138,10 +145,10 @@ OPENAI_MODEL=gpt-4o-mini
 # OPENAI_SYSTEM_PROMPT=You are a helpful assistant.
 ```
 
-## Security
+## Security 🔐
 
 - `.env` is gitignored. Keep your API keys secret and rotate them if they leak.
 
-## License
+## License 📄
 
 MIT © 2025 dodjango. See [LICENSE](./LICENSE).
