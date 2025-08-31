@@ -3,18 +3,19 @@ import types
 import builtins
 
 import pytest
-
+# Import the module under test
 import chat as chat_mod
 
 
 def test_resolve_model_prefers_deployment(monkeypatch):
+    """OPENAI_DEPLOYMENT takes precedence over OPENAI_MODEL."""
     monkeypatch.setenv("OPENAI_DEPLOYMENT", "azure-deploy")
     monkeypatch.setenv("OPENAI_MODEL", "ignored-model")
     assert chat_mod.resolve_model() == "azure-deploy"
 
 
 def test_resolve_model_model_fallback(monkeypatch):
-    # Set to empty so load_dotenv won't override
+    # Set to empty so load_dotenv won't override from a real .env
     monkeypatch.setenv("OPENAI_DEPLOYMENT", "")
     monkeypatch.setenv("OPENAI_MODEL", "some-model")
     assert chat_mod.resolve_model() == "some-model"
@@ -30,6 +31,8 @@ def test_resolve_model_missing_raises(monkeypatch):
 
 
 # ---- Fake client for chat_once tests (no network) ----
+# Minimal fake objects mimicking the subset of the OpenAI SDK we interact with.
+# These fakes let us verify streaming and non-streaming logic without I/O.
 
 
 class _FakeMessage:
@@ -68,7 +71,7 @@ class _FakeCompletions:
         self._final_text = final_text
 
     def create(self, *, model, messages, stream=False):  # noqa: D401 - match signature
-        # Return iterable of events for stream=True, else a non-streaming completion
+    # Return iterable of events for stream=True, else a non-streaming completion
         if stream:
             def _iter():
                 for chunk in self._stream_chunks:
@@ -93,6 +96,7 @@ class _FakeClient:
 
 
 def test_chat_once_non_streaming():
+    """Non-streaming path returns the final text and appends to messages."""
     client = _FakeClient(final_text="NONSTREAM")
     messages: list[dict] = []
     out = chat_mod.chat_once(client, "dummy-model", messages, "hello", stream=False, console=None)  # type: ignore[arg-type]
@@ -104,6 +108,7 @@ def test_chat_once_non_streaming():
 
 
 def test_chat_once_streaming():
+    """Streaming path concatenates chunks and appends to messages."""
     client = _FakeClient(stream_chunks=["he", "llo"])  # yields "hello"
     messages: list[dict] = []
     out = chat_mod.chat_once(client, "dummy-model", messages, "hi", stream=True, console=None)  # type: ignore[arg-type]
