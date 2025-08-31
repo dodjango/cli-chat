@@ -31,6 +31,14 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
+# Optional rich-based coloring for interactive output
+try:
+    from rich.console import Console  # type: ignore
+    from rich.theme import Theme  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    Console = None  # type: ignore[assignment]
+    Theme = None  # type: ignore[assignment]
+
 
 def getenv_required(name: str) -> str:
     value = os.getenv(name)
@@ -52,6 +60,22 @@ def get_assistant_name() -> str:
     """Assistant display name used in interactive mode."""
     load_dotenv()
     return os.getenv("ASSISTANT_NAME", "Assistant")
+
+
+def build_console() -> Optional[Any]:
+    """Return a Rich Console with a simple theme, or None if rich is unavailable."""
+    if Console is None or Theme is None:
+        return None
+    theme = Theme(
+        {
+            "meta.info": "bold dim",
+            "user.prefix": "bold cyan",
+            "assistant.prefix": "bold green",
+            "assistant.text": "green",
+            "system.prefix": "bold magenta",
+        }
+    )
+    return Console(theme=theme)
 
 
 def resolve_model() -> str:
@@ -76,6 +100,9 @@ def chat_once(
     messages: List[ChatCompletionMessageParam],
     prompt: str,
     stream: bool,
+    *,
+    console: Optional[Any] = None,
+    assistant_style: str = "assistant.text",
 ) -> str:
     messages.append(cast(ChatCompletionMessageParam, {"role": "user", "content": prompt}))
 
@@ -93,11 +120,17 @@ def chat_once(
                     text = getattr(delta, "content", None)
                     if text:
                         collected.append(text)
-                        print(text, end="", flush=True)
+                        if console is not None:
+                            console.print(text, end="", style=assistant_style)
+                        else:
+                            print(text, end="", flush=True)
                 except Exception:
                     # Be resilient to any shape differences
                     pass
-            print()
+            if console is not None:
+                console.print("")
+            else:
+                print()
             assistant_text = "".join(collected)
         except Exception:
             # Fallback to non-streaming on error
@@ -112,7 +145,10 @@ def chat_once(
         messages=messages,
     )
     content = completion.choices[0].message.content or ""
-    print(content)
+    if console is not None:
+        console.print(content, style=assistant_style)
+    else:
+        print(content)
     messages.append(cast(ChatCompletionMessageParam, {"role": "assistant", "content": content}))
     return content
 
@@ -124,7 +160,11 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
         messages.append(cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt}))
 
     assistant_name = get_assistant_name()
-    print("Type your message. Commands: /exit, /quit, /clear")
+    console = build_console()
+    if console is not None:
+        console.print("Type your message. Commands: /exit, /quit, /clear", style="meta.info")
+    else:
+        print("Type your message. Commands: /exit, /quit, /clear")
     try:
         while True:
             try:
@@ -140,13 +180,30 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
                 break
             if user == "/clear":
                 messages = [cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt})] if system_prompt else []
-                print("History cleared.")
+                if console is not None:
+                    console.print("History cleared.", style="meta.info")
+                else:
+                    print("History cleared.")
                 continue
 
-            print(f"{assistant_name}: ", end="", flush=True)
-            chat_once(client, model, messages, user, stream=stream)
+            if console is not None:
+                console.print(f"{assistant_name}:", style="assistant.prefix", end=" ")
+            else:
+                print(f"{assistant_name}: ", end="", flush=True)
+            chat_once(
+                client,
+                model,
+                messages,
+                user,
+                stream=stream,
+                console=console,
+                assistant_style="assistant.text",
+            )
     except KeyboardInterrupt:
-        print("\nInterrupted.")
+        if console is not None:
+            console.print("\nInterrupted.", style="meta.info")
+        else:
+            print("\nInterrupted.")
     return 0
 
 
