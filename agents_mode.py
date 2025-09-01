@@ -46,6 +46,44 @@ try:
 except Exception:  # pragma: no cover - optional but recommended
   load_dotenv = None  # type: ignore
 
+# Optional rich-based coloring for interactive output (mirrors chat.py behavior)
+try:  # pragma: no cover - optional dependency
+  from rich.console import Console  # type: ignore
+  from rich.theme import Theme  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+  Console = None  # type: ignore[assignment]
+  Theme = None  # type: ignore[assignment]
+
+
+def _build_console():
+  """Return a Rich Console with a custom theme for colorized output, or None.
+
+  Behavior and overrides (kept in sync with chat.py):
+    - If rich is not installed, returns None.
+    - Respects NO_COLOR or CHAT_COLOR=off to disable colors.
+    - Theme can be customized via env:
+        USER_PREFIX_COLOR, ASSISTANT_PREFIX_COLOR, ASSISTANT_TEXT_COLOR,
+        SYSTEM_PREFIX_COLOR, META_INFO_COLOR.
+  """
+  if Console is None or Theme is None:
+    return None
+  if os.getenv("NO_COLOR") is not None:
+    return None
+  chat_color = (os.getenv("CHAT_COLOR") or "").strip().lower()
+  if chat_color in {"off", "0", "false", "no"}:
+    return None
+
+  theme_map: Dict[str, str] = {
+    "meta.info": "bold dim",
+    "user.prefix": os.getenv("USER_PREFIX_COLOR", "bold cyan"),
+    "assistant.prefix": os.getenv("ASSISTANT_PREFIX_COLOR", "bold green"),
+    "assistant.text": os.getenv("ASSISTANT_TEXT_COLOR", "green"),
+    "system.prefix": os.getenv("SYSTEM_PREFIX_COLOR", "bold magenta"),
+  }
+  if os.getenv("META_INFO_COLOR"):
+    theme_map["meta.info"] = os.getenv("META_INFO_COLOR", theme_map["meta.info"])  # type: ignore[index]
+  return Console(theme=Theme(theme_map))
+
 
 def _strip_azure_suffix(base_url: str) -> str:
   # Azure base often includes /openai/v1; litellm expects the resource base
@@ -274,6 +312,7 @@ async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool)
 
   _install_loop_exception_handler()
   agent = await _build_agent(system_prompt)
+  console = _build_console()
   try:
     # Optional Git bootstrap: ask the agent to set working dir via MCP before the main run
     if os.getenv("AGENTS_GIT_BOOTSTRAP", "1") not in {"0", "false", "False"}:
@@ -294,8 +333,14 @@ async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool)
       try:
         async for event in result_stream.stream_events():
           if getattr(event, "type", None) == "raw_response_event" and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent):
-            print(event.data.delta, end="", flush=True)
-        print()
+            if console is not None:
+              console.print(event.data.delta, end="", style="assistant.text")
+            else:
+              print(event.data.delta, end="", flush=True)
+        if console is not None:
+          console.print("")
+        else:
+          print()
       finally:
         # Ensure the stream is closed
         for meth_name in ("aclose", "close", "cancel", "stop"):
@@ -309,7 +354,10 @@ async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool)
               pass
     else:
       result = await Runner.run(agent, prompt)
-      print(result.final_output)
+      if console is not None:
+        console.print(result.final_output, style="assistant.text")
+      else:
+        print(result.final_output)
     return 0
   finally:
     # Best-effort graceful shutdown to avoid lingering tasks/cancel-scope errors
@@ -328,6 +376,7 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
 
   _install_loop_exception_handler()
   agent = await _build_agent(system_prompt)
+  console = _build_console()
   # Attempt a Git bootstrap once at session start to set working directory
   if os.getenv("AGENTS_GIT_BOOTSTRAP", "1") not in {"0", "false", "False"}:
     try:
@@ -341,7 +390,10 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
       pass
   user_name = os.getenv("USER_NAME", "You")
   assistant_name = os.getenv("ASSISTANT_NAME", "Assistant")
-  print("Type your message. Commands: /exit, /quit, /clear")
+  if console is not None:
+    console.print("Type your message. Commands: /exit, /quit, /clear", style="meta.info")
+  else:
+    print("Type your message. Commands: /exit, /quit, /clear")
   messages: List[str] = []  # For simple local context; Agent holds its own state per run
   try:
     try:
@@ -357,20 +409,32 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
           break
         if user == "/clear":
           messages.clear()
-          print("History cleared.")
+          if console is not None:
+            console.print("History cleared.", style="meta.info")
+          else:
+            print("History cleared.")
           continue
 
         # Join local history + latest input (Agent maintains internal state too)
         messages.append(user)
         query = "\n\n".join(messages)
-        print(f"{assistant_name}: ", end="", flush=True)
+        if console is not None:
+          console.print(f"{assistant_name}:", style="assistant.prefix", end=" ")
+        else:
+          print(f"{assistant_name}: ", end="", flush=True)
         if stream:
           result_stream = Runner.run_streamed(agent, input=query)
           try:
             async for event in result_stream.stream_events():
               if getattr(event, "type", None) == "raw_response_event" and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent):
-                print(event.data.delta, end="", flush=True)
-            print()
+                if console is not None:
+                  console.print(event.data.delta, end="", style="assistant.text")
+                else:
+                  print(event.data.delta, end="", flush=True)
+            if console is not None:
+              console.print("")
+            else:
+              print()
           finally:
             for meth_name in ("aclose", "close", "cancel", "stop"):
               meth = getattr(result_stream, meth_name, None)
@@ -383,9 +447,15 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
                   pass
         else:
           result = await Runner.run(agent, query)
-          print(result.final_output)
+          if console is not None:
+            console.print(result.final_output, style="assistant.text")
+          else:
+            print(result.final_output)
     except KeyboardInterrupt:
-      print("\nInterrupted.")
+      if console is not None:
+        console.print("\nInterrupted.", style="meta.info")
+      else:
+        print("\nInterrupted.")
     return 0
   finally:
     await _cleanup_agent(agent)
