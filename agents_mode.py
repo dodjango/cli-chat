@@ -39,6 +39,49 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+import logging
+logger = logging.getLogger("agents_mode")
+
+
+def _setup_logging() -> None:
+  """Configure logging: verbose to file, minimal to console.
+
+  Env:
+    AGENTS_LOG_FILE: path to log file (default: agents.log)
+    AGENTS_LOG_LEVEL_FILE: level for file handler (default: DEBUG)
+    AGENTS_LOG_CONSOLE_LEVEL: level for console handler (default: ERROR)
+  """
+  # Avoid re-adding handlers on repeated calls
+  if getattr(_setup_logging, "_configured", False):  # type: ignore[attr-defined]
+    return
+  _setup_logging._configured = True  # type: ignore[attr-defined]
+
+  log_file = os.getenv("AGENTS_LOG_FILE", "agents.log")
+  file_level_name = os.getenv("AGENTS_LOG_LEVEL_FILE", "DEBUG").upper()
+  console_level_name = os.getenv("AGENTS_LOG_CONSOLE_LEVEL", "ERROR").upper()
+  file_level = getattr(logging, file_level_name, logging.DEBUG)
+  console_level = getattr(logging, console_level_name, logging.ERROR)
+
+  logger.setLevel(min(file_level, console_level))
+  logger.propagate = False
+
+  fmt = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+
+  # File handler (verbose)
+  try:
+    fh = logging.FileHandler(log_file, encoding="utf-8")
+    fh.setLevel(file_level)
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+  except Exception:
+    pass
+
+  # Console handler (minimal). Allow disabling with OFF/NONE.
+  if console_level_name not in {"OFF", "NONE", "DISABLE", "DISABLED"}:
+    ch = logging.StreamHandler()
+    ch.setLevel(console_level)
+    ch.setFormatter(fmt)
+    logger.addHandler(ch)
 from typing import List, Optional, Dict
 
 try:
@@ -110,10 +153,7 @@ def _configure_env_for_azure() -> None:
   if os.getenv("AZURE_API_VERSION") is None:
     version = os.getenv("AGENTS_AZURE_API_VERSION") or os.getenv("AZURE_OPENAI_API_VERSION")
     if not version:
-      print(
-        "Missing Azure API version. Set AGENTS_AZURE_API_VERSION or AZURE_API_VERSION.",
-        file=sys.stderr,
-      )
+      logger.error("Missing Azure API version. Set AGENTS_AZURE_API_VERSION or AZURE_API_VERSION.")
       raise SystemExit(2)
     os.environ["AZURE_API_VERSION"] = version
 
@@ -130,10 +170,7 @@ def _resolve_litellm_model() -> str:
   if deployment and "openai.azure.com" in base_url:
     return f"azure/{deployment}"
 
-  print(
-    "AGENTS_MODEL is required unless using Azure with OPENAI_DEPLOYMENT set.",
-    file=sys.stderr,
-  )
+  logger.error("AGENTS_MODEL is required unless using Azure with OPENAI_DEPLOYMENT set.")
   raise SystemExit(2)
 
 
@@ -247,9 +284,10 @@ async def _build_agent(system_prompt: Optional[str]):
     if spec.env:
       missing_keys = [k for k, v in env_overlay.items() if (v or "").strip() == ""]
       if missing_keys:
-        print(
-          f"[mcp] Skipping server '{spec.name}' due to missing required env: {', '.join(missing_keys)}",
-          file=sys.stderr,
+        logger.warning(
+          "[mcp] Skipping server '%s' due to missing required env: %s",
+          spec.name,
+          ", ".join(missing_keys),
         )
         continue
 
@@ -269,7 +307,7 @@ async def _build_agent(system_prompt: Optional[str]):
     try:
       await server.connect()
     except Exception as e:
-      print(f"[mcp] Failed to start server '{spec.name}': {e}", file=sys.stderr)
+      logger.error("[mcp] Failed to start server '%s': %s", spec.name, e)
       # Best-effort cleanup if the process started partially
       try:
         maybe_disc = getattr(server, "disconnect", None)
@@ -281,6 +319,7 @@ async def _build_agent(system_prompt: Optional[str]):
         pass
       continue
     mcp_servers.append(server)
+    logger.info("[mcp] Connected server '%s' (command=%s args=%s)", spec.name, spec.command, (spec.args or []))
 
   # Augment instructions with MCP usage guidance to improve tool reliability
   # and ensure Git working directory is set correctly.
@@ -296,6 +335,7 @@ async def _build_agent(system_prompt: Optional[str]):
     f"with path: {workdir}. Prefer MCP tools for Git operations. {search_pref}"
   )
   instructions = (system_prompt or default_instructions) + mcp_guidance
+  logger.info("Agent instructions appended with MCP guidance: %s", mcp_guidance)
   agent = agents_mod.Agent(
     name="Assistant",
     instructions=instructions,
@@ -303,6 +343,22 @@ async def _build_agent(system_prompt: Optional[str]):
     mcp_servers=mcp_servers,
   )
   return agent
+
+
+def _log_stream_event(event: object) -> None:
+  """Best-effort, safe logging of agent stream events (no chain-of-thought).
+
+  We log event type and any non-sensitive fields like tool names/server names.
+  """
+  etype = getattr(event, "type", None)
+  data = getattr(event, "data", None)
+  # Try to extract a tool/server hint if available
+  tool = getattr(data, "tool_name", None) or getattr(data, "name", None)
+  server = getattr(data, "server", None)
+  try:
+    logger.debug("[event] type=%s tool=%s server=%s class=%s", etype, tool, server, type(data).__name__)
+  except Exception:
+    logger.debug("[event] type=%s (uninspectable)", etype)
 
 
 async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool) -> int:
@@ -332,6 +388,7 @@ async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool)
       result_stream = Runner.run_streamed(agent, input=prompt)
       try:
         async for event in result_stream.stream_events():
+          _log_stream_event(event)
           if getattr(event, "type", None) == "raw_response_event" and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent):
             if console is not None:
               console.print(event.data.delta, end="", style="assistant.text")
@@ -354,6 +411,10 @@ async def _run_one_shot(system_prompt: Optional[str], prompt: str, stream: bool)
               pass
     else:
       result = await Runner.run(agent, prompt)
+      try:
+        logger.info("Run completed without streaming. final_output_len=%s", len(getattr(result, "final_output", "") or ""))
+      except Exception:
+        pass
       if console is not None:
         console.print(result.final_output, style="assistant.text")
       else:
@@ -426,6 +487,7 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
           result_stream = Runner.run_streamed(agent, input=query)
           try:
             async for event in result_stream.stream_events():
+              _log_stream_event(event)
               if getattr(event, "type", None) == "raw_response_event" and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent):
                 if console is not None:
                   console.print(event.data.delta, end="", style="assistant.text")
@@ -447,6 +509,10 @@ async def _run_interactive(system_prompt: Optional[str], stream: bool) -> int:
                   pass
         else:
           result = await Runner.run(agent, query)
+          try:
+            logger.info("Interactive step completed without streaming. final_output_len=%s", len(getattr(result, "final_output", "") or ""))
+          except Exception:
+            pass
           if console is not None:
             console.print(result.final_output, style="assistant.text")
           else:
@@ -501,14 +567,15 @@ def run_agents_mode(*, system_prompt: Optional[str], prompt: Optional[str], stre
       load_dotenv()
     except Exception:
       pass
+  # Configure logging early
+  _setup_logging()
   try:
     import importlib
     importlib.import_module("agents")
   except Exception as e:
-    print(
-      "Agents mode requires the OpenAI Agents SDK. Install with: pip install 'openai-agents[litellm]'.\n"
-      f"Import error: {e}",
-      file=sys.stderr,
+    logger.error(
+      "Agents mode requires the OpenAI Agents SDK. Install with: pip install 'openai-agents[litellm]'. Import error: %s",
+      e,
     )
     return 2
 
