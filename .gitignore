@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .venv/
+.pytest_cache/
 
 # Env files
 .env
@@ -12,3 +13,7 @@ __pycache__/
 # Asciinema recordings
 assets/chat-demo.cast
 assets/chat-demo.cast.bak
+
+# Logs
+*.log
+logs/

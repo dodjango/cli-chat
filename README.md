@@ -181,3 +181,34 @@ Notes:
  CLI to the OpenAI platform and implement the agent/tool flow there.
 
 Update: A prototype agents mode using the Agents SDK with LiteLLM is available to work with Azure models. Ensure `AZURE_API_VERSION` is set in your `.env`.
+
+### MCP servers sample config
+
+This repo includes a sample `mcp_servers.json` that wires several stdio MCP servers via `npx`:
+
+- Filesystem: `@modelcontextprotocol/server-filesystem` (allowed roots include the repo)
+- Web search (scraping): `duckduckgo-mcp-server` (may hit rate limits)
+- Web search (API): `tavily-mcp` (recommended; set `TAVILY_API_KEY` in `.env`)
+- Git: `@cyanheads/git-mcp-server`
+- Weather: `mohaimen-weather-mcp` (OpenWeatherMap; set `OPENWEATHER_API_KEY` in `.env`)
+- Time/Timezone: `mcp-time-server`
+
+Agents mode will load this config automatically if present. To use it:
+
+```fish
+uv run -- python chat.py --mode agents
+```
+
+Notes:
+
+- You need Node.js and `npx` available.
+- For filesystem server, the allowed directories can be controlled by args; this sample allows the project directory.
+- For Tavily, export `TAVILY_API_KEY` or put it in `.env`.
+- For global weather, export `OPENWEATHER_API_KEY` (OpenWeatherMap) or put it in `.env`.
+
+Troubleshooting:
+
+- If DuckDuckGo returns anomaly/rate-limit errors, retry after a few seconds or use Tavily.
+- If Tavily tools report "Invalid API key", set `TAVILY_API_KEY` or remove the server from `mcp_servers.json`.
+- If weather tools report missing key or 401, set `OPENWEATHER_API_KEY` or remove/disable the weather server.
+- First run can be slow because `npx` installs packages. If you see a startup timeout like "Timed out while waiting for response to ClientRequest", increase the connect window via `AGENTS_MCP_CONNECT_TIMEOUT` (seconds). Default is 60.

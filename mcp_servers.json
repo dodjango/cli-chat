@@ -1,0 +1,56 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ]
+    },
+    {
+      "name": "tavily",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
+      }
+    },
+    {
+      "name": "git",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cyanheads/git-mcp-server"
+      ]
+    },
+    {
+      "name": "weather",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mohaimen-weather-mcp"
+      ],
+      "env": {
+        "OPENWEATHER_API_KEY": "${OPENWEATHER_API_KEY}"
+      }
+    },
+    {
+      "name": "time",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-time-server"
+      ]
+    }
+  ]
+}
