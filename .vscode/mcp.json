@@ -6,6 +6,10 @@
       "args": [
         "stdio"
       ]
+    },
+    "container-use Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/dagger/container-use"
     }
   }
 }
