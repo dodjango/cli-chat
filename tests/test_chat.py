@@ -1,7 +1,3 @@
-import os
-import types
-import builtins
-
 import pytest
 
 # Import the module under test
@@ -103,7 +99,9 @@ def test_chat_once_non_streaming():
     """Non-streaming path returns the final text and appends to messages."""
     client = _FakeClient(final_text="NONSTREAM")
     messages: list[dict] = []
-    out = chat_mod.chat_once(client, "dummy-model", messages, "hello", stream=False, console=None)  # type: ignore[arg-type]
+    out = chat_mod.chat_once(
+        client, "dummy-model", messages, "hello", stream=False, console=None
+    )
     assert out == "NONSTREAM"
     assert len(messages) == 2
     assert messages[0]["role"] == "user"
@@ -115,7 +113,9 @@ def test_chat_once_streaming():
     """Streaming path concatenates chunks and appends to messages."""
     client = _FakeClient(stream_chunks=["he", "llo"])  # yields "hello"
     messages: list[dict] = []
-    out = chat_mod.chat_once(client, "dummy-model", messages, "hi", stream=True, console=None)  # type: ignore[arg-type]
+    out = chat_mod.chat_once(
+        client, "dummy-model", messages, "hi", stream=True, console=None
+    )
     assert out == "hello"
     assert len(messages) == 2
     assert messages[0]["role"] == "user"

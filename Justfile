@@ -85,4 +85,3 @@ cast-to-gif:
 optimize-gif:
     @test -f assets/chat-demo.gif || (echo "Missing assets/chat-demo.gif. Run: just cast-to-gif" && exit 1)
     gifsicle -O3 assets/chat-demo.gif -o assets/chat-demo.gif
-

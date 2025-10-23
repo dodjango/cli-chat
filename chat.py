@@ -51,8 +51,8 @@ try:
 
     RICH_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
-    Console = None  # type: ignore[misc, assignment]
-    Theme = None  # type: ignore[misc, assignment]
+    Console = None
+    Theme = None
     RICH_AVAILABLE = False
 
 
