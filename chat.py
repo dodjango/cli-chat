@@ -46,11 +46,14 @@ from openai.types.chat import ChatCompletionMessageParam
 
 # Optional rich-based coloring for interactive output
 try:
-    from rich.console import Console  # type: ignore
-    from rich.theme import Theme  # type: ignore
+    from rich.console import Console
+    from rich.theme import Theme
+
+    RICH_AVAILABLE = True
 except Exception:  # pragma: no cover - optional dependency
-    Console = None  # type: ignore[assignment]
-    Theme = None  # type: ignore[assignment]
+    Console = None  # type: ignore[misc, assignment]
+    Theme = None  # type: ignore[misc, assignment]
+    RICH_AVAILABLE = False
 
 
 def getenv_required(name: str) -> str:
@@ -75,13 +78,13 @@ def getenv_required(name: str) -> str:
 
 def get_client() -> OpenAI:
     """
-        Create and return an OpenAI client configured from the environment.
+    Create and return an OpenAI client configured from the environment.
 
-        Notes:
-            - load_dotenv() is idempotent; calling here ensures .env is considered
-                even if callers forget to preload it.
-            - OPENAI_BASE_URL and OPENAI_API_KEY are required.
-            - OPENAI_ORG is optional and only used by OpenAI.
+    Notes:
+        - load_dotenv() is idempotent; calling here ensures .env is considered
+            even if callers forget to preload it.
+        - OPENAI_BASE_URL and OPENAI_API_KEY are required.
+        - OPENAI_ORG is optional and only used by OpenAI.
     """
     load_dotenv()
     base_url = getenv_required("OPENAI_BASE_URL")
@@ -114,14 +117,14 @@ def get_user_name() -> str:
 
 def build_console() -> Optional[Any]:
     """
-        Return a Rich Console with a custom theme for colorized output, or None.
+    Return a Rich Console with a custom theme for colorized output, or None.
 
-        Behavior and overrides:
-            - If "rich" is not installed, returns None silently.
-            - Respects NO_COLOR or CHAT_COLOR=off to disable colors.
-            - Colors can be customized via:
-                    USER_PREFIX_COLOR, ASSISTANT_PREFIX_COLOR, ASSISTANT_TEXT_COLOR,
-                    SYSTEM_PREFIX_COLOR, META_INFO_COLOR.
+    Behavior and overrides:
+        - If "rich" is not installed, returns None silently.
+        - Respects NO_COLOR or CHAT_COLOR=off to disable colors.
+        - Colors can be customized via:
+                USER_PREFIX_COLOR, ASSISTANT_PREFIX_COLOR, ASSISTANT_TEXT_COLOR,
+                SYSTEM_PREFIX_COLOR, META_INFO_COLOR.
     """
     if Console is None or Theme is None:
         return None
@@ -142,8 +145,9 @@ def build_console() -> Optional[Any]:
         "system.prefix": os.getenv("SYSTEM_PREFIX_COLOR", "bold magenta"),
     }
     # Optional override for meta color
-    if os.getenv("META_INFO_COLOR"):
-        theme_map["meta.info"] = os.getenv("META_INFO_COLOR", theme_map["meta.info"])  # type: ignore[index]
+    meta_color = os.getenv("META_INFO_COLOR")
+    if meta_color:
+        theme_map["meta.info"] = meta_color
 
     theme = Theme(theme_map)
     return Console(theme=theme)
@@ -151,14 +155,14 @@ def build_console() -> Optional[Any]:
 
 def resolve_model() -> str:
     """
-        Resolve and return the model/deployment identifier.
+    Resolve and return the model/deployment identifier.
 
-        Precedence:
-            1) OPENAI_DEPLOYMENT (Azure)
-            2) OPENAI_MODEL (generic / OpenAI)
+    Precedence:
+        1) OPENAI_DEPLOYMENT (Azure)
+        2) OPENAI_MODEL (generic / OpenAI)
 
-        Raises:
-                SystemExit: If neither environment variable is set (exit code 2).
+    Raises:
+            SystemExit: If neither environment variable is set (exit code 2).
     """
     load_dotenv()
     model = os.getenv("OPENAI_DEPLOYMENT") or os.getenv("OPENAI_MODEL")
@@ -189,28 +193,30 @@ def chat_once(
     assistant_style: str = "assistant.text",
 ) -> str:
     """
-        Send a single user prompt to the chat model and return the assistant reply.
+    Send a single user prompt to the chat model and return the assistant reply.
 
-        Behavior:
-            - Appends the user message to ``messages`` and, after completion,
-                appends the assistant message as well (mutates the list in-place).
-            - If ``stream`` is True, attempts to stream tokens and prints them as
-                they arrive; if streaming fails for any reason, automatically falls
-                back to a non-streaming request.
+    Behavior:
+        - Appends the user message to ``messages`` and, after completion,
+            appends the assistant message as well (mutates the list in-place).
+        - If ``stream`` is True, attempts to stream tokens and prints them as
+            they arrive; if streaming fails for any reason, automatically falls
+            back to a non-streaming request.
 
-        Args:
-                client: Configured OpenAI-compatible client.
-                model: Deployment/model identifier.
-                messages: Mutable history of role/content dicts.
-                prompt: The user message to send.
-                stream: Whether to request a streaming response.
-                console: Optional Rich console for styled printing; when None, uses print().
-                assistant_style: Rich style name used for assistant tokens.
+    Args:
+            client: Configured OpenAI-compatible client.
+            model: Deployment/model identifier.
+            messages: Mutable history of role/content dicts.
+            prompt: The user message to send.
+            stream: Whether to request a streaming response.
+            console: Optional Rich console for styled printing; when None, uses print().
+            assistant_style: Rich style name used for assistant tokens.
 
-        Returns:
-                The assistant's final response text (possibly empty string).
+    Returns:
+            The assistant's final response text (possibly empty string).
     """
-    messages.append(cast(ChatCompletionMessageParam, {"role": "user", "content": prompt}))
+    messages.append(
+        cast(ChatCompletionMessageParam, {"role": "user", "content": prompt})
+    )
 
     if stream:
         try:
@@ -240,10 +246,15 @@ def chat_once(
                 print()
             assistant_text = "".join(collected)
         except Exception:
-        # Any error while streaming -> fallback to non-streaming mode.
+            # Any error while streaming -> fallback to non-streaming mode.
             stream = False
         else:
-            messages.append(cast(ChatCompletionMessageParam, {"role": "assistant", "content": assistant_text}))
+            messages.append(
+                cast(
+                    ChatCompletionMessageParam,
+                    {"role": "assistant", "content": assistant_text},
+                )
+            )
             return assistant_text
 
     # Non-streaming path (also used as a fallback when streaming fails)
@@ -256,34 +267,42 @@ def chat_once(
         console.print(content, style=assistant_style)
     else:
         print(content)
-    messages.append(cast(ChatCompletionMessageParam, {"role": "assistant", "content": content}))
+    messages.append(
+        cast(ChatCompletionMessageParam, {"role": "assistant", "content": content})
+    )
     return content
 
 
 def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> int:
     """
-        Run an interactive chat session with the assistant in the terminal.
+    Run an interactive chat session with the assistant in the terminal.
 
-        Features:
-            - Prompt loop with basic slash commands:
-                    /exit, /quit -> leave the session
-                    /clear       -> reset conversation history (preserves system prompt)
-            - Optional token streaming for responses.
+    Features:
+        - Prompt loop with basic slash commands:
+                /exit, /quit -> leave the session
+                /clear       -> reset conversation history (preserves system prompt)
+        - Optional token streaming for responses.
 
-        Returns:
-                0 on normal exit.
+    Returns:
+            0 on normal exit.
     """
     client = get_client()
     messages: List[ChatCompletionMessageParam] = []  # entire conversation state
     if system_prompt:
         # Seed the conversation with a system message if provided.
-        messages.append(cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt}))
+        messages.append(
+            cast(
+                ChatCompletionMessageParam, {"role": "system", "content": system_prompt}
+            )
+        )
 
     assistant_name = get_assistant_name()
     user_name = get_user_name()
     console = build_console()
     if console is not None:
-        console.print("Type your message. Commands: /exit, /quit, /clear", style="meta.info")
+        console.print(
+            "Type your message. Commands: /exit, /quit, /clear", style="meta.info"
+        )
     else:
         print("Type your message. Commands: /exit, /quit, /clear")
     try:
@@ -301,7 +320,16 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
                 break
             if user == "/clear":
                 # Reset history; keep system message if one was set.
-                messages = [cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt})] if system_prompt else []
+                messages = (
+                    [
+                        cast(
+                            ChatCompletionMessageParam,
+                            {"role": "system", "content": system_prompt},
+                        )
+                    ]
+                    if system_prompt
+                    else []
+                )
                 if console is not None:
                     console.print("History cleared.", style="meta.info")
                 else:
@@ -329,7 +357,9 @@ def interactive_chat(model: str, system_prompt: Optional[str], stream: bool) -> 
     return 0
 
 
-def one_shot(model: str, system_prompt: Optional[str], prompt: str, stream: bool) -> int:
+def one_shot(
+    model: str, system_prompt: Optional[str], prompt: str, stream: bool
+) -> int:
     """
     Run a single-turn chat completion and print the response.
 
@@ -345,21 +375,31 @@ def one_shot(model: str, system_prompt: Optional[str], prompt: str, stream: bool
     client = get_client()
     messages: List[ChatCompletionMessageParam] = []
     if system_prompt:
-        messages.append(cast(ChatCompletionMessageParam, {"role": "system", "content": system_prompt}))
+        messages.append(
+            cast(
+                ChatCompletionMessageParam, {"role": "system", "content": system_prompt}
+            )
+        )
     chat_once(client, model, messages, prompt, stream=stream)
     return 0
 
 
 def main(argv: list[str]) -> int:
     """
-        Parse CLI arguments and run either one-shot or interactive mode.
+    Parse CLI arguments and run either one-shot or interactive mode.
 
-        Contract:
-            - Exit code 0 on success; 2 for missing required env vars.
+    Contract:
+        - Exit code 0 on success; 2 for missing required env vars.
     """
-    parser = argparse.ArgumentParser(description="CLI chat for Azure/OpenAI-compatible endpoints")
-    parser.add_argument("--prompt", help="One-shot prompt; if omitted, starts interactive chat")
-    parser.add_argument("--no-stream", action="store_true", help="Disable streaming output")
+    parser = argparse.ArgumentParser(
+        description="CLI chat for Azure/OpenAI-compatible endpoints"
+    )
+    parser.add_argument(
+        "--prompt", help="One-shot prompt; if omitted, starts interactive chat"
+    )
+    parser.add_argument(
+        "--no-stream", action="store_true", help="Disable streaming output"
+    )
 
     args = parser.parse_args(argv)
     model = resolve_model()

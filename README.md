@@ -100,15 +100,50 @@ Tips:
 - `just env`         – Print important environment variables
 - `just ping`        – Quick health check that sends a fixed prompt (`ping`) and exits
 - `just lint`        – Basic lint (pyflakes)
+- `just typecheck`   – Type checking with mypy
+- `just check`       – Run all quality checks (lint + typecheck)
 - `just test`        – Run smoke tests
 - `just venv`        – Ensure uv-managed venv exists
 - `just init-env`    – Copy `.env.example` to `.env` if missing
 
 ## Development 🛠️
 
+### Code Quality
+
+The project includes several tools for maintaining code quality:
+
 ```bash
-just lint
+just lint        # Run pyflakes
+just typecheck   # Run mypy type checking
+just check       # Run both lint and typecheck
+just test        # Run pytest
 ```
+
+### Pre-commit Hooks
+
+Pre-commit hooks are configured to automatically check code quality before commits:
+
+```bash
+# Install pre-commit hooks (one-time setup)
+uv run -- pre-commit install
+
+# Run hooks manually on all files
+uv run -- pre-commit run --all-files
+```
+
+The hooks include:
+- Code formatting (black)
+- Linting (flake8)
+- Type checking (mypy)
+- General file checks (trailing whitespace, line endings, etc.)
+
+### CI/CD
+
+GitHub Actions automatically runs tests, linting, and type checking on:
+- All pushes to `main` and `claude/*` branches
+- All pull requests to `main`
+
+The CI pipeline tests against Python 3.10, 3.11, and 3.12.
 
 The repo includes `.editorconfig` to keep indentation consistent (tabs for `Justfile`, 4 spaces for Python).
 

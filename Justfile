@@ -36,6 +36,13 @@ chat-ns:
 lint:
     uv run -- pyflakes chat.py || true
 
+# Type check with mypy
+typecheck:
+    uv run -- mypy chat.py
+
+# Run all quality checks (lint + typecheck)
+check: lint typecheck
+
 # Run tests
 test:
     uv run -- pytest -q

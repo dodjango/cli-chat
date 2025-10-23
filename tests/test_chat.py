@@ -3,6 +3,7 @@ import types
 import builtins
 
 import pytest
+
 # Import the module under test
 import chat as chat_mod
 
@@ -71,8 +72,9 @@ class _FakeCompletions:
         self._final_text = final_text
 
     def create(self, *, model, messages, stream=False):  # noqa: D401 - match signature
-    # Return iterable of events for stream=True, else a non-streaming completion
+        # Return iterable of events for stream=True, else a non-streaming completion
         if stream:
+
             def _iter():
                 for chunk in self._stream_chunks:
                     yield _StreamEvent(chunk)
@@ -87,7 +89,9 @@ class _FakeCompletions:
 
 class _FakeChat:
     def __init__(self, stream_chunks=None, final_text="OK"):
-        self.completions = _FakeCompletions(stream_chunks=stream_chunks, final_text=final_text)
+        self.completions = _FakeCompletions(
+            stream_chunks=stream_chunks, final_text=final_text
+        )
 
 
 class _FakeClient:
