@@ -38,22 +38,28 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import List, Optional, Dict, Any, cast
+from typing import List, Optional, Dict, Any, cast, TYPE_CHECKING
 
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 # Optional rich-based coloring for interactive output
-try:
-    from rich.console import Console
-    from rich.theme import Theme
+if TYPE_CHECKING:
+    from rich.console import Console as RichConsole
+    from rich.theme import Theme as RichTheme
 
-    RICH_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    Console = None
-    Theme = None
-    RICH_AVAILABLE = False
+    RICH_AVAILABLE: bool
+else:
+    try:
+        from rich.console import Console as RichConsole
+        from rich.theme import Theme as RichTheme
+
+        RICH_AVAILABLE = True
+    except Exception:  # pragma: no cover - optional dependency
+        RichConsole = None  # type: ignore[misc]
+        RichTheme = None  # type: ignore[misc]
+        RICH_AVAILABLE = False
 
 
 def getenv_required(name: str) -> str:
@@ -126,7 +132,7 @@ def build_console() -> Optional[Any]:
                 USER_PREFIX_COLOR, ASSISTANT_PREFIX_COLOR, ASSISTANT_TEXT_COLOR,
                 SYSTEM_PREFIX_COLOR, META_INFO_COLOR.
     """
-    if Console is None or Theme is None:
+    if RichConsole is None or RichTheme is None:
         return None
 
     # Color disable toggles
@@ -149,8 +155,8 @@ def build_console() -> Optional[Any]:
     if meta_color:
         theme_map["meta.info"] = meta_color
 
-    theme = Theme(theme_map)
-    return Console(theme=theme)
+    theme = RichTheme(theme_map)
+    return RichConsole(theme=theme)
 
 
 def resolve_model() -> str:
